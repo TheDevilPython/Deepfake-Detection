@@ -1,0 +1,47 @@
+import cv2
+import numpy as np
+import logging
+from tensorflow.keras.models import load_model
+
+logging.basicConfig(level=logging.INFO)
+
+class DeepfakeDetector:
+    def __init__(self):
+        self.model = load_model('path/to/your/model.h5')  # Update with actual path
+        self.threshold = 0.7  # Adjusted threshold
+
+    def preprocess_frame(self, frame):
+        frame = cv2.resize(frame, (224, 224))
+        frame = frame / 255.0
+        return frame
+
+    def predict(self, video_path):
+        cap = cv2.VideoCapture(video_path)
+        predictions = []
+        frame_count = 0
+
+        while cap.isOpened():
+            ret, frame = cap.read()
+            if not ret:
+                break
+
+            frame_count += 1
+            if frame_count % 30 == 0:  # Process every 30th frame
+                preprocessed_frame = self.preprocess_frame(frame)
+                prediction = self.model.predict(np.expand_dims(preprocessed_frame, axis=0))[0]
+                predictions.append(prediction)
+                logging.info(f"Frame {frame_count}: Prediction = {prediction}")
+
+        cap.release()
+
+        if predictions:
+            final_prediction = np.mean(predictions)
+        else:
+            final_prediction = 0  # Handle edge case if no frames are processed
+
+        logging.info(f"Final prediction: {final_prediction}")
+
+        result = "Fake" if final_prediction > self.threshold else "Real"
+        logging.info(f"Video classified as: {result}")
+
+        return result
